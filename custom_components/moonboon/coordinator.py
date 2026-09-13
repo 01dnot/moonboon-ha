@@ -214,7 +214,11 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
         await self.async_request_refresh()
 
     async def async_restart(self) -> None:
-        """Clear a stopped state so the motor can be started again."""
+        """Clear a stopped state so the motor can be started again.
+
+        Tolerates BAD_STATE: pressing this while the motor already runs is
+        harmless, not an error worth showing the user.
+        """
         try:
             await self._async_ensure_connected()
             await self._client.async_restart()

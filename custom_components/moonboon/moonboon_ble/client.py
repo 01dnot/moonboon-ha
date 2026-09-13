@@ -196,10 +196,14 @@ class MoonboonClient:
         """Clear a stopped state, moving the motor to "ready".
 
         This is the step that is easy to miss: `start` only works from
-        "ready". Without it the motor answers rc:0 and does nothing.
+        "ready" (or "awaiting input"). Without it the motor answers rc:0 and
+        does nothing.
+
+        BAD_STATE means the motor is already running, or already reset, so it
+        is tolerated -- the caller only wants it in a startable state.
         """
         payload = await self._request(OP_WRITE, CMD_CONTROL, {"command": "restart"})
-        self._check(payload, "restart")
+        self._check(payload, "restart", allow=(RC_BAD_STATE,))
 
     async def async_stop(self) -> None:
         """Stop rocking.
@@ -226,13 +230,26 @@ class MoonboonClient:
         self._check(payload, "start")
 
     async def async_play(self, program: list[Step]) -> Status:
-        """Run a program using the app's full handshake.
+        """Run a program, using whichever handshake the current state needs.
 
-        restart -> load -> start, then verify. A zero return code does not
-        mean the motor moved: it refuses to rock an empty cradle, and reports
-        success either way.
+        The official app uses two patterns, and which one is valid depends on
+        what the motor is doing:
+
+        * running  -> stop, which leaves it in "awaiting input"
+        * stopped  -> restart, which leaves it in "ready"
+
+        Sending the wrong one returns rc:6 (BAD_STATE), so the state is read
+        first. Then the program is loaded and started.
+
+        A zero return code does not mean the motor moved: it refuses to rock
+        an empty cradle and reports success either way, so the result is
+        verified.
         """
-        await self.async_restart()
+        status = await self.async_get_status()
+        if status.is_running:
+            await self.async_stop()
+        else:
+            await self.async_restart()
         await asyncio.sleep(0.3)
         await self.async_load(program)
         await self.async_start()
