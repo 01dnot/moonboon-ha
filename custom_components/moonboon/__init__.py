@@ -2,12 +2,27 @@
 
 from __future__ import annotations
 
+import logging
+
 from homeassistant.components import bluetooth
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
+from .const import DOMAIN
 from .coordinator import MoonboonConfigEntry, MoonboonCoordinator
+
+_LOGGER = logging.getLogger(__name__)
+
+def integration_version(hass: HomeAssistant) -> str:
+    """Best effort lookup of the installed manifest version."""
+    try:
+        from homeassistant.loader import async_get_loaded_integration
+
+        return async_get_loaded_integration(hass, DOMAIN).version or "unknown"
+    except Exception:  # noqa: BLE001 - only used for logging
+        return "unknown"
+
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -23,6 +38,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: MoonboonConfigEntry) -> 
     """Set up Moonboon from a config entry."""
     address = entry.unique_id
     assert address is not None
+
+    # Logged at INFO so it is obvious which version is actually running after
+    # an update -- Home Assistant caches Python modules until a full restart.
+    _LOGGER.info(
+        "Setting up Moonboon %s (integration version %s)",
+        address,
+        integration_version(hass),
+    )
 
     if bluetooth.async_scanner_count(hass, connectable=True) == 0:
         raise ConfigEntryNotReady(
