@@ -17,7 +17,8 @@
       "not_found": "Could not see the cradle. Make sure it is in pairing mode (blue light) and within range of a Bluetooth adapter.",
       "cannot_connect": "Connected, but the motor did not answer as expected.",
       "pairing_failed": "Pairing failed. The cradle may have left pairing mode before Home Assistant reached it.",
-      "pairing_unsupported": "This Bluetooth adapter cannot pair. If you are using an ESPHome Bluetooth proxy, update its firmware to a version that supports pairing, or use a local Bluetooth adapter."
+      "pairing_unsupported": "This Bluetooth adapter cannot pair. If you are using an ESPHome Bluetooth proxy, update its firmware to a version that supports pairing, or use a local Bluetooth adapter.",
+      "pairing_timeout": "Timed out while pairing. If you use an ESPHome Bluetooth proxy, check that its firmware supports pairing; otherwise move the cradle closer to an adapter and try again."
     },
     "abort": {
       "already_configured": "This Moonboon is already set up.",

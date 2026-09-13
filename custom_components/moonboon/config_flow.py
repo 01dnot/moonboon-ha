@@ -7,6 +7,7 @@ the user has to press the pairing button during setup.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -25,7 +26,13 @@ from .moonboon_ble import MoonboonClient, MoonboonError
 
 _LOGGER = logging.getLogger(__name__)
 
-DISCOVERY_TIMEOUT = 30
+#: How long to wait for the cradle to show up after pairing mode is pressed.
+DISCOVERY_TIMEOUT = 15
+#: Connecting goes through bleak-retry-connector, which retries internally.
+CONNECT_TIMEOUT = 30
+#: Bonding itself. Over an ESPHome proxy this can stall indefinitely if the
+#: firmware does not support pairing, so it must be bounded.
+PAIR_TIMEOUT = 30
 
 
 class MoonboonConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -109,44 +116,101 @@ class MoonboonConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def _async_try_pair(self) -> str | None:
-        """Connect and bond. Returns an error key, or None on success."""
+        """Connect and bond. Returns an error key, or None on success.
+
+        Every phase is bounded: a hung pairing attempt must surface as an
+        error the user can act on, not as a spinner that never resolves.
+        """
         assert self._discovery is not None
         address = self._discovery.address
 
         # The cradle was just put into pairing mode, so sweep now rather than
         # waiting for the next periodic discovery round.
+        _LOGGER.debug("Pairing %s: requesting active scan", address)
         await async_request_active_scan(self.hass)
+
+        _LOGGER.debug("Pairing %s: waiting for advertisement", address)
         try:
-            await bluetooth.async_process_advertisements(
-                self.hass,
-                lambda _info: True,
-                {"address": address, "connectable": True},
-                BluetoothScanningMode.ACTIVE,
-                DISCOVERY_TIMEOUT,
+            async with asyncio.timeout(DISCOVERY_TIMEOUT + 5):
+                await bluetooth.async_process_advertisements(
+                    self.hass,
+                    lambda _info: True,
+                    {"address": address, "connectable": True},
+                    BluetoothScanningMode.ACTIVE,
+                    DISCOVERY_TIMEOUT,
+                )
+        except (TimeoutError, asyncio.TimeoutError):
+            _LOGGER.warning(
+                "Moonboon %s not seen while pairing. %s",
+                address,
+                reachability(self.hass, address),
             )
-        except TimeoutError:
-            _LOGGER.debug("Motor not seen: %s", reachability(self.hass, address))
             return "not_found"
 
         ble_device = bluetooth.async_ble_device_from_address(
             self.hass, address, connectable=True
         )
         if ble_device is None:
+            _LOGGER.warning(
+                "No connectable path to %s. %s", address, reachability(self.hass, address)
+            )
             return "not_found"
 
         client = MoonboonClient(DOMAIN)
         try:
-            await client.connect(ble_device)
-            await client.pair()
-            await client.async_get_info()
-        except NotImplementedError:
-            # The adapter or proxy cannot bond. ESPHome proxies need firmware
-            # new enough to advertise the pairing feature flag.
-            return "pairing_unsupported"
-        except MoonboonError:
+            _LOGGER.debug("Pairing %s: connecting", address)
+            async with asyncio.timeout(CONNECT_TIMEOUT):
+                await client.connect(ble_device)
+
+            # Bonding may already have happened implicitly when connecting
+            # while the cradle is in pairing mode. An explicit pair() can then
+            # fail even though everything is fine, so it is best effort --
+            # what actually matters is whether the motor answers afterwards,
+            # and whether we can reconnect later outside pairing mode.
+            try:
+                _LOGGER.debug("Pairing %s: bonding", address)
+                async with asyncio.timeout(PAIR_TIMEOUT):
+                    await client.pair()
+                _LOGGER.debug("Pairing %s: bond established", address)
+            except NotImplementedError:
+                _LOGGER.error(
+                    "This Bluetooth adapter cannot initiate pairing. "
+                    "An ESPHome proxy needs firmware new enough to support it."
+                )
+                return "pairing_unsupported"
+            except (TimeoutError, asyncio.TimeoutError):
+                _LOGGER.warning(
+                    "Timed out bonding with %s; continuing to verify anyway",
+                    address,
+                )
+            except Exception as err:  # noqa: BLE001 - best effort
+                _LOGGER.warning(
+                    "pair() failed for %s (%s: %s); continuing to verify anyway",
+                    address,
+                    type(err).__name__,
+                    err,
+                )
+
+            _LOGGER.debug("Pairing %s: reading device info", address)
+            async with asyncio.timeout(15):
+                info = await client.async_get_info()
+            _LOGGER.info(
+                "Connected to Moonboon %s (hw %s, fw %s, protocol %s)",
+                address,
+                info.hardware,
+                info.firmware,
+                info.protocol,
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            _LOGGER.error(
+                "Timed out talking to %s. %s", address, reachability(self.hass, address)
+            )
+            return "pairing_timeout"
+        except MoonboonError as err:
+            _LOGGER.error("Motor did not answer: %s", err)
             return "cannot_connect"
         except Exception as err:  # noqa: BLE001 - report as a pairing failure
-            _LOGGER.debug("Pairing failed: %s", err)
+            _LOGGER.exception("Setup of %s failed: %s", address, err)
             return "pairing_failed"
         finally:
             await client.disconnect()

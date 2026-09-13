@@ -17,7 +17,8 @@
       "not_found": "Fant ikke vogga. Sjekk at den står i paringsmodus (blått lys) og er innen rekkevidde av en Bluetooth-adapter.",
       "cannot_connect": "Koblet til, men motoren svarte ikke som forventet.",
       "pairing_failed": "Paringen feilet. Vogga gikk kanskje ut av paringsmodus før Home Assistant rakk frem.",
-      "pairing_unsupported": "Denne Bluetooth-adapteren kan ikke pare. Bruker du en ESPHome Bluetooth-proxy, må firmwaren oppdateres til en versjon som støtter paring — eller bruk en lokal Bluetooth-adapter."
+      "pairing_unsupported": "Denne Bluetooth-adapteren kan ikke pare. Bruker du en ESPHome Bluetooth-proxy, må firmwaren oppdateres til en versjon som støtter paring — eller bruk en lokal Bluetooth-adapter.",
+      "pairing_timeout": "Tidsavbrudd under paring. Bruker du en ESPHome Bluetooth-proxy, sjekk at firmwaren støtter paring — ellers flytt vogga nærmere en adapter og prøv igjen."
     },
     "abort": {
       "already_configured": "Denne Moonboon er allerede satt opp.",

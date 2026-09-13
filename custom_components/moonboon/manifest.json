@@ -7,13 +7,20 @@
       "connectable": true
     }
   ],
-  "codeowners": ["@01dnot"],
+  "codeowners": [
+    "@01dnot"
+  ],
   "config_flow": true,
-  "dependencies": ["bluetooth_adapters"],
+  "dependencies": [
+    "bluetooth_adapters"
+  ],
   "documentation": "https://github.com/01dnot/moonboon-ha",
   "integration_type": "device",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/01dnot/moonboon-ha/issues",
-  "requirements": ["bleak-retry-connector>=3.5.0", "cbor2>=5.6.0"],
-  "version": "0.1.0"
+  "requirements": [
+    "bleak-retry-connector>=3.5.0",
+    "cbor2>=5.6.0"
+  ],
+  "version": "0.1.2"
 }
