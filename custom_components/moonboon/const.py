@@ -1,0 +1,30 @@
+"""Constants for the Moonboon integration."""
+
+from __future__ import annotations
+
+from typing import Final
+
+DOMAIN: Final = "moonboon"
+
+#: The motor advertises no service UUIDs at all -- only its name -- so name is
+#: the only thing we can match on.
+LOCAL_NAME: Final = "Moonboon"
+
+CONF_SPEED: Final = "speed"
+CONF_MINUTES: Final = "minutes"
+CONF_PROGRAM: Final = "program"
+CONF_KEEP_CONNECTED: Final = "keep_connected"
+
+PROGRAM_CONSTANT: Final = "constant"
+PROGRAM_FADE: Final = "fade_out"
+PROGRAMS: Final = [PROGRAM_CONSTANT, PROGRAM_FADE]
+
+DEFAULT_SPEED: Final = 40
+DEFAULT_MINUTES: Final = 60
+DEFAULT_PROGRAM: Final = PROGRAM_FADE
+DEFAULT_KEEP_CONNECTED: Final = True
+
+#: Poll cadence. The motor pushes only on physical interaction -- it says
+#: nothing when a program ends -- so the countdown has to be polled.
+UPDATE_INTERVAL_RUNNING: Final = 30
+UPDATE_INTERVAL_IDLE: Final = 300

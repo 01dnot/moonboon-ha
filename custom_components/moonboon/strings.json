@@ -1,0 +1,89 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Select your Moonboon",
+        "data": {
+          "address": "Device"
+        }
+      },
+      "pair": {
+        "title": "Pair with {name}",
+        "description": "Press the pairing button on the cradle so it lights up blue, then select Submit.\n\nThe motor only accepts new connections while it is in pairing mode. Once paired, Home Assistant can connect whenever it needs to."
+      }
+    },
+    "error": {
+      "not_found": "Could not see the cradle. Make sure it is in pairing mode (blue light) and within range of a Bluetooth adapter.",
+      "cannot_connect": "Connected, but the motor did not answer as expected.",
+      "pairing_failed": "Pairing failed. The cradle may have left pairing mode before Home Assistant reached it.",
+      "pairing_unsupported": "This Bluetooth adapter cannot pair. If you are using an ESPHome Bluetooth proxy, update its firmware to a version that supports pairing, or use a local Bluetooth adapter."
+    },
+    "abort": {
+      "already_configured": "This Moonboon is already set up.",
+      "no_devices_found": "No Moonboon found. Make sure it is powered on and within range.",
+      "no_connectable_adapter": "No Bluetooth adapter that can make outgoing connections is available."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "safety_stop": {
+        "name": "Safety stop"
+      }
+    },
+    "button": {
+      "restart": {
+        "name": "Reset motor"
+      }
+    },
+    "number": {
+      "speed": {
+        "name": "Speed"
+      },
+      "minutes": {
+        "name": "Program length"
+      }
+    },
+    "select": {
+      "program": {
+        "name": "Program",
+        "state": {
+          "constant": "Constant speed",
+          "fade_out": "Fade out"
+        }
+      }
+    },
+    "sensor": {
+      "state": {
+        "name": "Motor state",
+        "state": {
+          "running": "Rocking",
+          "paused": "Paused",
+          "idle": "Idle",
+          "finished": "Finished",
+          "ready": "Ready",
+          "awaiting input": "Awaiting input",
+          "stopped (user)": "Stopped at the cradle",
+          "stopped (app)": "Stopped from an app",
+          "stopped (timeout)": "Program finished",
+          "stopped (error)": "Stopped by an error"
+        }
+      },
+      "remaining": {
+        "name": "Remaining"
+      },
+      "finishes_at": {
+        "name": "Finishes at"
+      },
+      "step": {
+        "name": "Program step"
+      },
+      "last_cycles": {
+        "name": "Last session rocks"
+      },
+      "last_duration": {
+        "name": "Last session length"
+      }
+    }
+  }
+}

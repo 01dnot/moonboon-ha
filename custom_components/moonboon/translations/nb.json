@@ -1,0 +1,89 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Velg Moonboon",
+        "data": {
+          "address": "Enhet"
+        }
+      },
+      "pair": {
+        "title": "Par med {name}",
+        "description": "Trykk paringsknappen på vogga så den lyser blått, og velg deretter Send inn.\n\nMotoren slipper kun inn nye tilkoblinger mens den står i paringsmodus. Når paringen er gjort, kan Home Assistant koble til når som helst."
+      }
+    },
+    "error": {
+      "not_found": "Fant ikke vogga. Sjekk at den står i paringsmodus (blått lys) og er innen rekkevidde av en Bluetooth-adapter.",
+      "cannot_connect": "Koblet til, men motoren svarte ikke som forventet.",
+      "pairing_failed": "Paringen feilet. Vogga gikk kanskje ut av paringsmodus før Home Assistant rakk frem.",
+      "pairing_unsupported": "Denne Bluetooth-adapteren kan ikke pare. Bruker du en ESPHome Bluetooth-proxy, må firmwaren oppdateres til en versjon som støtter paring — eller bruk en lokal Bluetooth-adapter."
+    },
+    "abort": {
+      "already_configured": "Denne Moonboon er allerede satt opp.",
+      "no_devices_found": "Fant ingen Moonboon. Sjekk at den er på og innen rekkevidde.",
+      "no_connectable_adapter": "Ingen Bluetooth-adapter som kan opprette utgående tilkoblinger er tilgjengelig."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "safety_stop": {
+        "name": "Sikkerhetsstopp"
+      }
+    },
+    "button": {
+      "restart": {
+        "name": "Nullstill motor"
+      }
+    },
+    "number": {
+      "speed": {
+        "name": "Fart"
+      },
+      "minutes": {
+        "name": "Programlengde"
+      }
+    },
+    "select": {
+      "program": {
+        "name": "Program",
+        "state": {
+          "constant": "Konstant fart",
+          "fade_out": "Nedtrapping"
+        }
+      }
+    },
+    "sensor": {
+      "state": {
+        "name": "Motortilstand",
+        "state": {
+          "running": "Vugger",
+          "paused": "Pauset",
+          "idle": "Inaktiv",
+          "finished": "Ferdig",
+          "ready": "Klar",
+          "awaiting input": "Venter på kommando",
+          "stopped (user)": "Stoppet på vogga",
+          "stopped (app)": "Stoppet fra app",
+          "stopped (timeout)": "Programmet gikk ut",
+          "stopped (error)": "Stoppet av feil"
+        }
+      },
+      "remaining": {
+        "name": "Gjenstår"
+      },
+      "finishes_at": {
+        "name": "Ferdig klokken"
+      },
+      "step": {
+        "name": "Programsteg"
+      },
+      "last_cycles": {
+        "name": "Vuggebevegelser sist"
+      },
+      "last_duration": {
+        "name": "Lengde sist"
+      }
+    }
+  }
+}
