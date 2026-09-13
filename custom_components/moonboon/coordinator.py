@@ -12,6 +12,7 @@ from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -26,6 +27,8 @@ from .const import (
     DEFAULT_SPEED,
     DOMAIN,
     PROGRAM_FADE,
+    RECONNECT_BACKOFF_MAX,
+    SETTINGS_DEBOUNCE,
     UPDATE_INTERVAL_IDLE,
     UPDATE_INTERVAL_RUNNING,
 )
@@ -63,6 +66,17 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
         self.address = address
         self._client = MoonboonClient(DOMAIN, push_callback=self._handle_push)
         self._connect_lock = asyncio.Lock()
+        self._reconnect_task: asyncio.Task[None] | None = None
+        self._reconnect_attempts = 0
+        # Dragging a slider emits a value per step. Without this, each one
+        # would restart the program over BLE.
+        self._apply = Debouncer(
+            hass,
+            _LOGGER,
+            cooldown=SETTINGS_DEBOUNCE,
+            immediate=False,
+            function=self._async_apply_settings,
+        )
 
     # ------------------------------------------------------------- settings
 
@@ -82,18 +96,29 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
         return str(self._option(CONF_PROGRAM, DEFAULT_PROGRAM))
 
     async def async_set_option(self, key: str, value: Any) -> None:
-        """Persist a desired setting and apply it if the motor is running."""
+        """Persist a desired setting, and apply it once the user settles.
+
+        Applying means restarting the program, because the motor cannot change
+        speed in place. Sliders emit a value per step, so the actual write is
+        debounced -- otherwise a drag from 20 to 80 would restart the motor
+        sixty times.
+        """
         options = {**self.config_entry.options, key: value}
         self.hass.config_entries.async_update_entry(
             self.config_entry, options=options
         )
+        self.async_update_listeners()
         if self.data is not None and self.data.is_running:
-            # Restart with the new settings, keeping roughly the time that is
-            # left rather than silently extending the session.
-            remaining = max(1, round(self.data.status.remaining / 60))
-            await self.async_play(minutes_override=remaining)
-        else:
-            self.async_update_listeners()
+            await self._apply.async_call()
+
+    async def _async_apply_settings(self) -> None:
+        """Restart the running program with the current settings."""
+        if self.data is None or not self.data.is_running:
+            return
+        # Keep roughly the time that was left rather than silently extending
+        # the session to a full program length.
+        remaining = max(1, round(self.data.status.remaining / 60))
+        await self.async_play(minutes_override=remaining)
 
     def build_program(self, minutes_override: int | None = None) -> list[Step]:
         minutes = minutes_override if minutes_override is not None else self.minutes
@@ -125,16 +150,30 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
     @callback
     def _handle_disconnect(self, _client: BleakClient) -> None:
         _LOGGER.debug("Disconnected from %s", self.address)
-        self.hass.async_create_task(self._async_reconnect_soon())
+        if self._reconnect_task is not None and not self._reconnect_task.done():
+            return
+        self._reconnect_task = self.config_entry.async_create_background_task(
+            self.hass, self._async_reconnect(), f"{DOMAIN}-reconnect"
+        )
 
-    async def _async_reconnect_soon(self) -> None:
-        await asyncio.sleep(1)
+    async def _async_reconnect(self) -> None:
+        """Reconnect with backoff.
+
+        An unbonded client is dropped every ~30 seconds, so a failing bond
+        would otherwise make this spin.
+        """
+        delay = min(RECONNECT_BACKOFF_MAX, 2**self._reconnect_attempts)
+        self._reconnect_attempts += 1
+        await asyncio.sleep(delay)
         try:
             await self._async_ensure_connected()
-        except Exception as err:  # noqa: BLE001 - the next poll will retry
-            _LOGGER.debug("Reconnect failed, will retry on next update: %s", err)
+        except Exception as err:  # noqa: BLE001 - the next poll retries too
+            _LOGGER.debug("Reconnect failed (attempt %s): %s", self._reconnect_attempts, err)
+        else:
+            self._reconnect_attempts = 0
 
     async def async_shutdown(self) -> None:
+        await self._apply.async_shutdown()
         await super().async_shutdown()
         await self._client.disconnect()
 
@@ -171,6 +210,7 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
         except Exception as err:  # noqa: BLE001 - surface as a normal failure
             raise UpdateFailed(f"Error talking to the motor: {err}") from err
 
+        self._reconnect_attempts = 0
         if self.data is not None:
             state.safety_stop = self.data.safety_stop and not state.is_running
         if state.is_running and state.status.remaining > 0:

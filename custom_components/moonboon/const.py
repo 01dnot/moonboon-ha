@@ -28,3 +28,10 @@ DEFAULT_KEEP_CONNECTED: Final = True
 #: nothing when a program ends -- so the countdown has to be polled.
 UPDATE_INTERVAL_RUNNING: Final = 30
 UPDATE_INTERVAL_IDLE: Final = 300
+
+#: Seconds to wait after the last slider movement before restarting the
+#: program. Changing speed requires a full reload, so each step must not fire.
+SETTINGS_DEBOUNCE: Final = 2.0
+
+#: Upper bound on reconnect backoff, in seconds.
+RECONNECT_BACKOFF_MAX: Final = 60
