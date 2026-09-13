@@ -52,6 +52,65 @@ Settings → Devices & Services.
 **Manually:** copy `custom_components/moonboon` into your `config` folder and
 restart.
 
+## Entity IDs
+
+| Entity | ID |
+|---|---|
+| Switch | `switch.moonboon` |
+| Speed | `number.moonboon_speed` |
+| Program length | `number.moonboon_program_length` |
+| Program | `select.moonboon_program` |
+| Motor state | `sensor.moonboon_motor_state` |
+| Remaining | `sensor.moonboon_remaining` |
+| Finishes at | `sensor.moonboon_finishes_at` |
+| Program step | `sensor.moonboon_program_step` |
+| Last session rocks | `sensor.moonboon_last_session_rocks` |
+| Last session length | `sensor.moonboon_last_session_length` |
+| Safety stop | `binary_sensor.moonboon_safety_stop` |
+| Reset motor | `button.moonboon_reset_motor` |
+
+## Example: one script for the usual nap
+
+The stored speed follows changes made on the cradle itself, so a script that
+sets everything explicitly gives the same result every time.
+
+```yaml
+alias: Rock
+icon: mdi:cradle
+sequence:
+  - action: select.select_option
+    target:
+      entity_id: select.moonboon_program
+    data:
+      option: fade_out
+  - action: number.set_value
+    target:
+      entity_id: number.moonboon_speed
+    data:
+      value: 40
+  - action: number.set_value
+    target:
+      entity_id: number.moonboon_program_length
+    data:
+      value: 120
+  - action: switch.turn_on
+    target:
+      entity_id: switch.moonboon
+```
+
+## Apple Home and Siri
+
+Expose **only the script** through the HomeKit Bridge. A script becomes a
+button in Apple Home, and a button has no on/off state -- so it is never caught
+by "turn off everything" or by a room command. You can start the rocking on
+purpose, but not stop it by accident.
+
+If you would rather have a real on/off accessory, convert the switch with the
+[`switch_as_x`](https://www.home-assistant.io/integrations/switch_as_x/) helper
+and expose it as a **fan**. Siri treats accessory types as separate categories,
+so "turn on the lights" will never reach a fan. Give it its own room as well:
+a cradle sharing a room with the lights gets stopped by "turn off the bedroom".
+
 ## Things worth knowing
 
 These come out of the reverse engineering and explain behaviour that would
