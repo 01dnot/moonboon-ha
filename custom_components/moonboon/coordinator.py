@@ -68,6 +68,9 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
         self._connect_lock = asyncio.Lock()
         self._reconnect_task: asyncio.Task[None] | None = None
         self._reconnect_attempts = 0
+        #: Set when the user changed the program length, so applying uses the
+        #: new length instead of preserving what was left.
+        self._length_changed = False
         # Dragging a slider emits a value per step. Without this, each one
         # would restart the program over BLE.
         self._apply = Debouncer(
@@ -107,6 +110,8 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
         self.hass.config_entries.async_update_entry(
             self.config_entry, options=options
         )
+        if key == CONF_MINUTES:
+            self._length_changed = True
         self.async_update_listeners()
         if self.data is not None and self.data.is_running:
             await self._apply.async_call()
@@ -115,24 +120,28 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
         """Apply new settings to an already running program.
 
         Writing the program while the motor runs swaps it in without stopping
-        the cradle -- only the countdown restarts, which is compensated for by
-        writing the remaining time as the new length. Going through
-        stop/start here would pause the rocking for several seconds for no
-        reason.
+        the cradle -- only the countdown restarts. Changing the speed should
+        therefore preserve whatever time was left, while changing the length
+        obviously means to apply the new length. Going through stop/start here
+        would pause the rocking for several seconds for no reason.
         """
         if self.data is None or not self.data.is_running:
+            self._length_changed = False
             return
+        length_changed, self._length_changed = self._length_changed, False
         try:
             await self._async_ensure_connected()
-            # Read the countdown fresh rather than trusting cached data: it is
-            # only polled every 30 s, and each write sets the program length
-            # from it, so a stale value would stretch the session a little on
-            # every change.
-            status = await self._client.async_get_status()
-            if not status.is_running:
-                return
-            remaining = max(1, round(status.remaining / 60))
-            await self._client.async_load(self.build_program(remaining))
+            minutes: int | None = None
+            if not length_changed:
+                # Read the countdown fresh rather than trusting cached data:
+                # it is only polled every 30 s, and the write sets the program
+                # length from it, so a stale value would stretch the session a
+                # little on every change.
+                status = await self._client.async_get_status()
+                if not status.is_running:
+                    return
+                minutes = max(1, round(status.remaining / 60))
+            await self._client.async_load(self.build_program(minutes))
         except MoonboonError as err:
             raise HomeAssistantError(f"Could not update the program: {err}") from err
         await self.async_request_refresh()
