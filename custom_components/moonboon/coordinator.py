@@ -112,13 +112,24 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
             await self._apply.async_call()
 
     async def _async_apply_settings(self) -> None:
-        """Restart the running program with the current settings."""
+        """Apply new settings to an already running program.
+
+        Writing the program while the motor runs swaps it in without stopping
+        the cradle -- only the countdown restarts, which is compensated for by
+        writing the remaining time as the new length. Going through
+        stop/start here would pause the rocking for several seconds for no
+        reason.
+        """
         if self.data is None or not self.data.is_running:
             return
-        # Keep roughly the time that was left rather than silently extending
-        # the session to a full program length.
         remaining = max(1, round(self.data.status.remaining / 60))
-        await self.async_play(minutes_override=remaining)
+        program = self.build_program(remaining)
+        try:
+            await self._async_ensure_connected()
+            await self._client.async_load(program)
+        except MoonboonError as err:
+            raise HomeAssistantError(f"Could not update the program: {err}") from err
+        await self.async_request_refresh()
 
     def build_program(self, minutes_override: int | None = None) -> list[Step]:
         minutes = minutes_override if minutes_override is not None else self.minutes
