@@ -72,6 +72,12 @@ def body_length(raw: bytes) -> int | None:
     return struct.unpack(">H", raw[2:4])[0]
 
 
+#: Largest plausible frame. The biggest response seen from the motor is a
+#: twelve step program at roughly 230 bytes; anything far beyond that means the
+#: stream has desynchronised.
+MAX_BODY = 1024
+
+
 class Reassembler:
     """Reassembles notification fragments into whole SMP packets.
 
@@ -88,6 +94,12 @@ class Reassembler:
         packets: list[Packet] = []
         while len(self._buf) >= HEADER_LEN:
             length = struct.unpack(">H", self._buf[2:4])[0]
+            if length > MAX_BODY:
+                # A desynchronised stream would otherwise wait forever for
+                # bytes that never arrive, silently swallowing every packet
+                # after it. Drop one byte and try to resynchronise.
+                del self._buf[:1]
+                continue
             total = HEADER_LEN + length
             if len(self._buf) < total:
                 break

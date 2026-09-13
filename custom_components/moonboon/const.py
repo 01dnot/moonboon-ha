@@ -34,5 +34,9 @@ UPDATE_INTERVAL_IDLE: Final = 300
 #: Swapping the program while running is cheap, so this can be short.
 SETTINGS_DEBOUNCE: Final = 1.2
 
+#: Ignore setting pushes this soon after our own write, so the echo of a
+#: change we made is not mistaken for someone changing it at the cradle.
+ECHO_SUPPRESSION: Final = 4.0
+
 #: Upper bound on reconnect backoff, in seconds.
 RECONNECT_BACKOFF_MAX: Final = 60

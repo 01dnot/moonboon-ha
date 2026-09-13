@@ -92,3 +92,19 @@ def test_fade_12_step_matches_app() -> None:
 
 def test_constant_is_a_single_step() -> None:
     assert [(s.speed, s.timer) for s in constant(40, 60)] == [(40, 60)]
+
+
+def test_reassembler_resyncs_after_garbage() -> None:
+    """A desynchronised stream must not swallow every later packet."""
+    reassembler = Reassembler()
+    # A stray byte pair that decodes as an implausible body length.
+    reassembler.feed(b"\x00\x00\xff\xf0\x00\x41\x00\x03")
+    good = encode(0, 3, None, 4)
+    packets = reassembler.feed(good)
+    assert any(p.cmd == 3 and p.seq == 4 for p in packets)
+
+
+def test_reassembler_survives_leading_noise() -> None:
+    reassembler = Reassembler()
+    packets = reassembler.feed(b"\xff" * 6 + encode(2, 1, {"command": "stop"}, 9))
+    assert any(p.payload == {"command": "stop"} for p in packets)

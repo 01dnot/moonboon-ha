@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import timedelta
+from time import monotonic
 from typing import Any
 
 from bleak import BleakClient
@@ -27,6 +28,7 @@ from .const import (
     DEFAULT_SPEED,
     DOMAIN,
     PROGRAM_FADE,
+    ECHO_SUPPRESSION,
     RECONNECT_BACKOFF_MAX,
     SETTINGS_DEBOUNCE,
     UPDATE_INTERVAL_IDLE,
@@ -71,6 +73,9 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
         #: Set when the user changed the program length, so applying uses the
         #: new length instead of preserving what was left.
         self._length_changed = False
+        #: Monotonic time of our last write, used to ignore the echo of our
+        #: own change when adopting settings from the cradle.
+        self._last_write = 0.0
         # Dragging a slider emits a value per step. Without this, each one
         # would restart the program over BLE.
         self._apply = Debouncer(
@@ -141,6 +146,7 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
                 if not status.is_running:
                     return
                 minutes = max(1, round(status.remaining / 60))
+            self._last_write = monotonic()
             await self._client.async_load(self.build_program(minutes))
         except MoonboonError as err:
             raise HomeAssistantError(f"Could not update the program: {err}") from err
@@ -219,9 +225,39 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
             state.safety_stop = True
         elif code == UR_SETTINGS_CHANGED:
             state.safety_stop = False
+            self._adopt_settings(payload)
         self.async_set_updated_data(state)
         # The push carries new settings but not the countdown, so refresh.
         self.hass.async_create_task(self.async_request_refresh())
+
+    @callback
+    def _adopt_settings(self, payload: dict[str, Any]) -> None:
+        """Follow a change someone made on the cradle itself.
+
+        Without this the stored settings drift from reality: the display would
+        keep showing the old speed, and the next change from Home Assistant
+        would quietly write it back, undoing what someone just did by hand.
+
+        Our own writes can echo back, so changes within a short window after
+        writing are ignored.
+        """
+        if monotonic() - self._last_write < ECHO_SUPPRESSION:
+            return
+        sequence = payload.get("sequence") or []
+        if not sequence:
+            return
+        speed = sequence[0].get("speed")
+        minutes = sum(int(step.get("timer", 0)) for step in sequence)
+        options = dict(self.config_entry.options)
+        if isinstance(speed, int) and speed != options.get(CONF_SPEED):
+            options[CONF_SPEED] = speed
+        if minutes and minutes != options.get(CONF_MINUTES):
+            options[CONF_MINUTES] = minutes
+        if options != dict(self.config_entry.options):
+            _LOGGER.debug("Adopting settings changed at the cradle: %s", options)
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, options=options
+            )
 
     # --------------------------------------------------------------- polling
 
@@ -259,6 +295,7 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
         program = self.build_program(minutes_override)
         try:
             await self._async_ensure_connected()
+            self._last_write = monotonic()
             await self._client.async_play(program)
         except MoonboonNeedsWeight as err:
             raise HomeAssistantError(
