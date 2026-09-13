@@ -122,11 +122,17 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
         """
         if self.data is None or not self.data.is_running:
             return
-        remaining = max(1, round(self.data.status.remaining / 60))
-        program = self.build_program(remaining)
         try:
             await self._async_ensure_connected()
-            await self._client.async_load(program)
+            # Read the countdown fresh rather than trusting cached data: it is
+            # only polled every 30 s, and each write sets the program length
+            # from it, so a stale value would stretch the session a little on
+            # every change.
+            status = await self._client.async_get_status()
+            if not status.is_running:
+                return
+            remaining = max(1, round(status.remaining / 60))
+            await self._client.async_load(self.build_program(remaining))
         except MoonboonError as err:
             raise HomeAssistantError(f"Could not update the program: {err}") from err
         await self.async_request_refresh()

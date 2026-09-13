@@ -31,7 +31,8 @@ UPDATE_INTERVAL_IDLE: Final = 300
 
 #: Seconds to wait after the last slider movement before restarting the
 #: program. Changing speed requires a full reload, so each step must not fire.
-SETTINGS_DEBOUNCE: Final = 2.0
+#: Swapping the program while running is cheap, so this can be short.
+SETTINGS_DEBOUNCE: Final = 1.2
 
 #: Upper bound on reconnect backoff, in seconds.
 RECONNECT_BACKOFF_MAX: Final = 60
