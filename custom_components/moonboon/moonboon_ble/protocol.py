@@ -73,9 +73,29 @@ def body_length(raw: bytes) -> int | None:
 
 
 #: Largest plausible frame. The biggest response seen from the motor is a
-#: twelve step program at roughly 230 bytes; anything far beyond that means the
-#: stream has desynchronised.
+#: twelve step program at roughly 230 bytes.
 MAX_BODY = 1024
+
+
+def plausible_header(raw: bytes) -> bool:
+    """Whether these eight bytes can be the start of a real frame.
+
+    Used to resynchronise. Checking the length alone is not enough: a stray
+    byte can shift the window so the length field reads as a small, believable
+    number, which would block the reader just as effectively. Everything known
+    to be fixed is therefore checked -- the motor only ever speaks group 65,
+    the op is one of four values, and the flags are always zero.
+    """
+    if len(raw) < HEADER_LEN:
+        return False
+    op_byte, flags, length, group, _seq, _cmd = _HEADER.unpack(raw[:HEADER_LEN])
+    return (
+        (op_byte & 0x07) <= 3
+        and (op_byte >> 5) == 0
+        and flags == 0
+        and group == GROUP
+        and length <= MAX_BODY
+    )
 
 
 class Reassembler:
@@ -93,13 +113,13 @@ class Reassembler:
         self._buf += data
         packets: list[Packet] = []
         while len(self._buf) >= HEADER_LEN:
-            length = struct.unpack(">H", self._buf[2:4])[0]
-            if length > MAX_BODY:
+            if not plausible_header(self._buf):
                 # A desynchronised stream would otherwise wait forever for
                 # bytes that never arrive, silently swallowing every packet
                 # after it. Drop one byte and try to resynchronise.
                 del self._buf[:1]
                 continue
+            length = struct.unpack(">H", self._buf[2:4])[0]
             total = HEADER_LEN + length
             if len(self._buf) < total:
                 break
