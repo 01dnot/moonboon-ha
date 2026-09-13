@@ -63,10 +63,10 @@
           "idle": "Idle",
           "finished": "Finished",
           "ready": "Ready",
-          "awaiting input": "Awaiting input",
-          "stopped (user)": "Stopped at the cradle",
+          "awaiting input": "Awaiting start",
+          "stopped (user)": "Stopped manually",
           "stopped (app)": "Stopped from an app",
-          "stopped (timeout)": "Program finished",
+          "stopped (timeout)": "Time ran out",
           "stopped (error)": "Stopped by an error"
         }
       },

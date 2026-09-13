@@ -39,7 +39,7 @@
     },
     "number": {
       "speed": {
-        "name": "Fart"
+        "name": "Hastighet"
       },
       "minutes": {
         "name": "Programlengde"
@@ -49,7 +49,7 @@
       "program": {
         "name": "Program",
         "state": {
-          "constant": "Konstant fart",
+          "constant": "Konstant hastighet",
           "fade_out": "Nedtrapping"
         }
       }
@@ -59,15 +59,15 @@
         "name": "Motortilstand",
         "state": {
           "running": "Vugger",
-          "paused": "Pauset",
+          "paused": "På pause",
           "idle": "Inaktiv",
-          "finished": "Ferdig",
+          "finished": "Fullført",
           "ready": "Klar",
-          "awaiting input": "Venter på kommando",
-          "stopped (user)": "Stoppet på vogga",
+          "awaiting input": "Venter på start",
+          "stopped (user)": "Stoppet manuelt",
           "stopped (app)": "Stoppet fra app",
-          "stopped (timeout)": "Programmet gikk ut",
-          "stopped (error)": "Stoppet av feil"
+          "stopped (timeout)": "Tiden er ute",
+          "stopped (error)": "Stoppet ved feil"
         }
       },
       "remaining": {
@@ -80,10 +80,10 @@
         "name": "Programsteg"
       },
       "last_cycles": {
-        "name": "Vuggebevegelser sist"
+        "name": "Bevegelser sist"
       },
       "last_duration": {
-        "name": "Lengde sist"
+        "name": "Varighet sist"
       }
     }
   }
