@@ -1,5 +1,8 @@
 # Moonboon for Home Assistant
 
+[![hacs](https://img.shields.io/badge/HACS-custom-41BDF5.svg)](https://hacs.xyz)
+[![release](https://img.shields.io/github/v/release/01dnot/moonboon-ha)](https://github.com/01dnot/moonboon-ha/releases)
+
 Control a **Moonboon Connect 2** baby cradle motor from Home Assistant over
 Bluetooth LE. No cloud, no account — the integration talks directly to the motor.
 
@@ -43,14 +46,40 @@ If it is not, setup says so rather than failing obscurely.
 
 ## Installation
 
-**HACS** → Integrations → ⋮ → Custom repositories → add this repository as an
-Integration → install → restart Home Assistant.
+### Via HACS
 
-The motor is then discovered automatically; look for it under
-Settings → Devices & Services.
+1. In Home Assistant, open **HACS**
+2. Open the **⋮** menu in the top right and choose **Custom repositories**
+3. Paste `https://github.com/01dnot/moonboon-ha`, pick category **Integration**,
+   and select **Add**
+4. Find **Moonboon** in the list, open it and select **Download**
+5. **Restart Home Assistant** — a reload is not enough, Python modules stay
+   cached until a full restart
 
-**Manually:** copy `custom_components/moonboon` into your `config` folder and
-restart.
+### Manually
+
+Copy `custom_components/moonboon` into `config/custom_components/` so you end
+up with `config/custom_components/moonboon/`, then restart Home Assistant.
+
+### Adding the cradle
+
+The motor is discovered automatically — look for it under
+**Settings → Devices & Services**. If it does not appear, add it with
+**+ Add integration** and search for *Moonboon*.
+
+Setup asks you to press the pairing button on the cradle so it lights up blue.
+That step is required: the motor only accepts new connections while in pairing
+mode. Close the official Moonboon app first — the motor stops advertising while
+a paired phone is connected, so Home Assistant cannot find it.
+
+## Languages
+
+The interface is available in **English** and **Norwegian (bokmål)**. Home
+Assistant picks per user, from the language in their profile, so one household
+can use both.
+
+Entity IDs are always derived from the English names, so automations keep
+working if someone changes language.
 
 ## Entity IDs
 
@@ -133,6 +162,42 @@ roughly the time that was left.
 someone changes settings at the cradle or holds it back — and nothing else, not
 even when a program ends. The countdown is therefore polled: every 30 seconds
 while rocking, every 5 minutes when idle.
+
+## Troubleshooting
+
+**It will not start, and nothing happens.** The cradle is probably empty. The
+motor has a weight sensor and refuses to rock without a load; the integration
+raises an error saying so.
+
+**Pairing fails or times out.** Make sure the cradle is in pairing mode (blue
+light) when you select Submit, and that the official app is closed. If you use
+an ESPHome Bluetooth proxy, its firmware must be new enough to support pairing.
+
+**Entities go unavailable.** The motor accepts a limited number of connections.
+Check that it is in range of an adapter, and look at the *reachability* line in
+the integration's diagnostics, which explains what the Bluetooth stack can see.
+
+**Everything looks stale after an update.** Home Assistant caches Python
+modules. Restart it fully, then check the log for the version that is actually
+running:
+
+```
+Setting up Moonboon ... (integration version x.y.z)
+```
+
+### Debug logging
+
+Add this to `configuration.yaml` and restart, then include the log in any
+issue report:
+
+```yaml
+logger:
+  logs:
+    custom_components.moonboon: debug
+```
+
+Diagnostics can be downloaded from the integration page. Device addresses are
+redacted, so they are safe to attach.
 
 ## Development
 
