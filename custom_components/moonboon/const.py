@@ -26,8 +26,10 @@ DEFAULT_KEEP_CONNECTED: Final = True
 
 #: Poll cadence. The motor pushes only on physical interaction -- it says
 #: nothing when a program ends -- so the countdown has to be polled.
-UPDATE_INTERVAL_RUNNING: Final = 30
-UPDATE_INTERVAL_IDLE: Final = 300
+UPDATE_INTERVAL_RUNNING: Final = 20
+#: The motor says nothing when someone starts it at the cradle, so being idle
+#: still has to be polled at a rate that feels responsive.
+UPDATE_INTERVAL_IDLE: Final = 60
 
 #: Seconds to wait after the last slider movement before restarting the
 #: program. Changing speed requires a full reload, so each step must not fire.

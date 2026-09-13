@@ -61,7 +61,11 @@ class MoonboonClient:
         self._client: BleakClient | None = None
         self._reassembler = Reassembler()
         self._pending: dict[int, asyncio.Future[dict[str, Any]]] = {}
-        self._seq = 0
+        # Sequence 0 is reserved: the motor stamps every unsolicited push with
+        # it. Using it for our own requests would make a push arriving mid
+        # request be consumed as that request's reply, losing the notification
+        # and answering the caller with the wrong payload.
+        self._seq = 1
         self._lock = asyncio.Lock()
 
     # ------------------------------------------------------------------ link
@@ -118,13 +122,15 @@ class MoonboonClient:
 
     def _handle_notify(self, _sender: Any, data: bytearray) -> None:
         for packet in self._reassembler.feed(bytes(data)):
+            if packet.cmd == CMD_PUSH:
+                self._dispatch_push(packet.payload)
+                continue
             future = self._pending.pop(packet.seq, None)
             if future is not None and not future.done():
                 future.set_result(packet.payload)
-            elif packet.cmd == CMD_PUSH:
-                self._dispatch_push(packet.payload)
 
     def _dispatch_push(self, payload: dict[str, Any]) -> None:
+        _LOGGER.debug("Unsolicited message from the motor: %s", payload)
         code = payload.get("ur")
         if code not in (UR_SETTINGS_CHANGED, UR_USER_STOP):
             _LOGGER.debug("Unknown unsolicited code %r: %s", code, payload)
@@ -138,7 +144,7 @@ class MoonboonClient:
             raise MoonboonNotConnected("Not connected to the motor")
         async with self._lock:
             seq = self._seq
-            self._seq = (self._seq + 1) % 256
+            self._seq = self._seq % 255 + 1  # 1..255, never 0
             future: asyncio.Future[dict[str, Any]] = (
                 asyncio.get_running_loop().create_future()
             )

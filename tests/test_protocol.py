@@ -108,3 +108,14 @@ def test_reassembler_survives_leading_noise() -> None:
     reassembler = Reassembler()
     packets = reassembler.feed(b"\xff" * 6 + encode(2, 1, {"command": "stop"}, 9))
     assert any(p.payload == {"command": "stop"} for p in packets)
+
+
+def test_our_sequence_numbers_never_collide_with_pushes() -> None:
+    """The motor stamps every push with seq 0, so we must never use it."""
+    seq = 1
+    seen = set()
+    for _ in range(600):
+        seen.add(seq)
+        seq = seq % 255 + 1
+    assert 0 not in seen
+    assert seen == set(range(1, 256))
