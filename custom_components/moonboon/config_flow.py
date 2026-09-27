@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 from homeassistant.components import bluetooth
@@ -43,6 +44,8 @@ class MoonboonConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._discovery: BluetoothServiceInfoBleak | None = None
         self._discovered: dict[str, BluetoothServiceInfoBleak] = {}
+        self._address: str | None = None
+        self._name: str | None = None
 
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfoBleak
@@ -97,21 +100,57 @@ class MoonboonConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Ask the user to put the cradle in pairing mode, then bond."""
         assert self._discovery is not None
+        self._address = self._discovery.address
+        self._name = self._discovery.name
         errors: dict[str, str] = {}
 
         if user_input is not None:
             error = await self._async_try_pair()
             if error is None:
                 return self.async_create_entry(
-                    title=self._discovery.name or "Moonboon",
-                    data={CONF_ADDRESS: self._discovery.address},
+                    title=self._name or "Moonboon",
+                    data={CONF_ADDRESS: self._address},
                 )
             errors["base"] = error
 
         return self.async_show_form(
             step_id="pair",
             data_schema=vol.Schema({}),
-            description_placeholders={"name": self._discovery.name or "Moonboon"},
+            description_placeholders={"name": self._name or "Moonboon"},
+            errors=errors,
+        )
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle a bond that was lost after setup.
+
+        Home Assistant kicks off reauth when the coordinator can no longer
+        establish a bonded connection -- most often because the Moonboon app
+        was used on a phone and evicted our bond, since the cradle only
+        remembers one central.
+        """
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Walk the user through pressing the pairing button, then re-bond."""
+        entry = self._get_reauth_entry()
+        self._address = entry.unique_id
+        self._name = entry.title
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            error = await self._async_try_pair()
+            if error is None:
+                return self.async_update_reload_and_abort(entry)
+            errors["base"] = error
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({}),
+            description_placeholders={"name": self._name or "Moonboon"},
             errors=errors,
         )
 
@@ -121,8 +160,8 @@ class MoonboonConfigFlow(ConfigFlow, domain=DOMAIN):
         Every phase is bounded: a hung pairing attempt must surface as an
         error the user can act on, not as a spinner that never resolves.
         """
-        assert self._discovery is not None
-        address = self._discovery.address
+        assert self._address is not None
+        address = self._address
 
         # The cradle was just put into pairing mode, so sweep now rather than
         # waiting for the next periodic discovery round.

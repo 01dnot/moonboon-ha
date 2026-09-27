@@ -11,6 +11,10 @@
       "pair": {
         "title": "Par med {name}",
         "description": "Trykk paringsknappen på vogga så den lyser blått, og velg deretter Send inn.\n\nMotoren slipper kun inn nye tilkoblinger mens den står i paringsmodus. Når paringen er gjort, kan Home Assistant koble til når som helst."
+      },
+      "reauth_confirm": {
+        "title": "Par {name} på nytt",
+        "description": "Vogga avviste tilkoblingen. Dette betyr som regel at paringen er borte -- vanligvis fordi Moonboon-appen på en telefon re-parret, siden vogga bare husker én sentral om gangen.\n\nTrykk paringsknappen på vogga så den lyser blått, og velg deretter Send inn."
       }
     },
     "error": {
@@ -23,7 +27,8 @@
     "abort": {
       "already_configured": "Denne Moonboon er allerede satt opp.",
       "no_devices_found": "Fant ingen Moonboon. Sjekk at den er på og innen rekkevidde.",
-      "no_connectable_adapter": "Ingen Bluetooth-adapter som kan opprette utgående tilkoblinger er tilgjengelig."
+      "no_connectable_adapter": "Ingen Bluetooth-adapter som kan opprette utgående tilkoblinger er tilgjengelig.",
+      "reauth_successful": "Vogga er paret på nytt."
     }
   },
   "entity": {

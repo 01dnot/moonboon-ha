@@ -11,6 +11,10 @@
       "pair": {
         "title": "Pair with {name}",
         "description": "Press the pairing button on the cradle so it lights up blue, then select Submit.\n\nThe motor only accepts new connections while it is in pairing mode. Once paired, Home Assistant can connect whenever it needs to."
+      },
+      "reauth_confirm": {
+        "title": "Pair {name} again",
+        "description": "The cradle refused the connection. This usually means the pairing was lost -- most often after the Moonboon app on a phone re-paired, since the cradle only remembers one central.\n\nPress the pairing button on the cradle so it lights up blue, then select Submit."
       }
     },
     "error": {
@@ -23,7 +27,8 @@
     "abort": {
       "already_configured": "This Moonboon is already set up.",
       "no_devices_found": "No Moonboon found. Make sure it is powered on and within range.",
-      "no_connectable_adapter": "No Bluetooth adapter that can make outgoing connections is available."
+      "no_connectable_adapter": "No Bluetooth adapter that can make outgoing connections is available.",
+      "reauth_successful": "The cradle has been paired again."
     }
   },
   "entity": {

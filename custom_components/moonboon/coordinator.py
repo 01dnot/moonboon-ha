@@ -12,7 +12,7 @@ from bleak import BleakClient
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -23,6 +23,7 @@ from .const import (
     CONF_MINUTES,
     CONF_PROGRAM,
     CONF_SPEED,
+    CONNECT_FAILURE_LIMIT,
     DEFAULT_MINUTES,
     DEFAULT_PROGRAM,
     DEFAULT_SPEED,
@@ -70,6 +71,11 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
         self._connect_lock = asyncio.Lock()
         self._reconnect_task: asyncio.Task[None] | None = None
         self._reconnect_attempts = 0
+        #: Bumped every poll where the cradle is visible but connect fails.
+        #: When this crosses the threshold we assume the bond was lost -- the
+        #: cradle only remembers one central -- and prompt the user to press
+        #: the pairing button through the reauth flow.
+        self._connect_failures = 0
         #: Set when the user changed the program length, so applying uses the
         #: new length instead of preserving what was left.
         self._length_changed = False
@@ -264,9 +270,25 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
     async def _async_update_data(self) -> MoonboonState:
         try:
             await self._async_ensure_connected()
-            state = await self._client.async_get_state()
         except UpdateFailed:
+            # The cradle is not currently visible -- a proxy or range issue,
+            # not a lost bond. Do not count it towards re-pairing.
             raise
+        except Exception as err:  # noqa: BLE001 - any connect failure counts
+            self._connect_failures += 1
+            if self._connect_failures >= CONNECT_FAILURE_LIMIT:
+                raise ConfigEntryAuthFailed(
+                    "The cradle refused the connection. This happens when the "
+                    "pairing was lost -- typically after the Moonboon app on "
+                    "a phone re-paired, since the cradle only remembers one "
+                    "central. Press the pairing button on the cradle to "
+                    "re-establish the bond."
+                ) from err
+            raise UpdateFailed(f"Could not connect to the motor: {err}") from err
+        self._connect_failures = 0
+
+        try:
+            state = await self._client.async_get_state()
         except MoonboonError as err:
             raise UpdateFailed(f"Error talking to the motor: {err}") from err
         except Exception as err:  # noqa: BLE001 - surface as a normal failure

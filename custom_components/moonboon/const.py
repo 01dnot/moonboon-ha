@@ -42,3 +42,9 @@ ECHO_SUPPRESSION: Final = 4.0
 
 #: Upper bound on reconnect backoff, in seconds.
 RECONNECT_BACKOFF_MAX: Final = 60
+
+#: Consecutive polls where the cradle is visible but the connection fails
+#: before we treat the bond as lost and prompt the user to re-pair. bleak
+#: already retries a handful of times per attempt, so a small number here is
+#: already several dozen aborted attempts on the wire.
+CONNECT_FAILURE_LIMIT: Final = 3
