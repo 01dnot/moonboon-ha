@@ -119,3 +119,35 @@ def test_our_sequence_numbers_never_collide_with_pushes() -> None:
         seq = seq % 255 + 1
     assert 0 not in seen
     assert seen == set(range(1, 256))
+
+
+# --- estimate_started_at ----------------------------------------------------
+
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+from moonboon_ble.models import estimate_started_at  # noqa: E402
+
+NOW = datetime(2026, 9, 27, 12, 0, tzinfo=timezone.utc)
+
+
+def test_started_at_is_program_length_minus_remaining() -> None:
+    # 180-minute program with 97 minutes left: started 83 minutes ago.
+    assert estimate_started_at(NOW, 180, 97 * 60) == NOW - timedelta(minutes=83)
+
+
+def test_started_at_holds_steady_across_poll_jitter() -> None:
+    first = estimate_started_at(NOW, 180, 97 * 60)
+    # 20 s later the cradle reports 20 s less, give or take a few seconds.
+    later = estimate_started_at(NOW + timedelta(seconds=20), 180, 97 * 60 - 17, first)
+    assert later == first
+
+
+def test_started_at_moves_when_a_new_session_begins() -> None:
+    old = NOW - timedelta(hours=2)
+    assert estimate_started_at(NOW, 180, 180 * 60 - 30, old) == NOW - timedelta(seconds=30)
+
+
+def test_started_at_unknown_without_program_or_time_left() -> None:
+    assert estimate_started_at(NOW, None, 600) is None
+    assert estimate_started_at(NOW, 180, 0) is None
+    assert estimate_started_at(NOW, 10, 20 * 60) is None  # more left than programmed

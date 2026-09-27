@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from .const import STATE_RUNNING
@@ -106,6 +106,8 @@ class MoonboonState:
     safety_stop: bool = False
     #: Computed once per poll so the value does not drift between reads.
     finishes_at: datetime | None = None
+    #: When the current session started; kept steady across polls.
+    started_at: datetime | None = None
 
     @property
     def is_running(self) -> bool:
@@ -122,3 +124,31 @@ class MoonboonState:
         if not self.program:
             return None
         return sum(step.timer for step in self.program)
+
+
+#: Estimates closer than this to the previous one are treated as the same start.
+STARTED_AT_TOLERANCE = timedelta(seconds=120)
+
+
+def estimate_started_at(
+    now: datetime,
+    program_minutes: int | None,
+    remaining: int,
+    previous: datetime | None = None,
+) -> datetime | None:
+    """When the running session began: program length minus what is left.
+
+    Both numbers come from the cradle, so the result survives Home Assistant
+    restarts and Bluetooth drop-outs. Poll jitter moves the raw estimate by a
+    few seconds each time; within STARTED_AT_TOLERANCE the previous value is
+    kept so the sensor does not change on every poll.
+    """
+    if not program_minutes or remaining <= 0:
+        return None
+    elapsed = program_minutes * 60 - remaining
+    if elapsed < 0:
+        return None
+    estimate = now - timedelta(seconds=elapsed)
+    if previous is not None and abs(estimate - previous) <= STARTED_AT_TOLERANCE:
+        return previous
+    return estimate

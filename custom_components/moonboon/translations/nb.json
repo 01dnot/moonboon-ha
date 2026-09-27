@@ -81,6 +81,9 @@
       "finishes_at": {
         "name": "Ferdig klokken"
       },
+      "started_at": {
+        "name": "Økten startet"
+      },
       "step": {
         "name": "Programsteg"
       },

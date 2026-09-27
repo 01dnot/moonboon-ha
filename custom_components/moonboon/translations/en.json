@@ -81,6 +81,9 @@
       "finishes_at": {
         "name": "Finishes at"
       },
+      "started_at": {
+        "name": "Session started"
+      },
       "step": {
         "name": "Program step"
       },

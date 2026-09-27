@@ -53,6 +53,13 @@ SENSORS: tuple[MoonboonSensorDescription, ...] = (
         value_fn=lambda s: s.finishes_at,
     ),
     MoonboonSensorDescription(
+        key="started_at",
+        translation_key="started_at",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:clock-start",
+        value_fn=lambda s: s.started_at,
+    ),
+    MoonboonSensorDescription(
         key="step",
         translation_key="step",
         icon="mdi:format-list-numbered",

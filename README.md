@@ -20,6 +20,7 @@ Built on a [reverse-engineered protocol specification](https://github.com/01dnot
 | `select` Program | Constant speed, or the app's fade-out ramp |
 | `sensor` Motor state | Rocking, ready, stopped at the cradle, … |
 | `sensor` Remaining / Finishes at | Countdown, and the wall-clock end time |
+| `sensor` Session started | When the current session began (program length minus time left), steady across restarts |
 | `sensor` Last session | Rocks and length of the previous run |
 | `binary_sensor` Safety stop | Pushed the instant someone holds the cradle back |
 | `button` Reset motor | Clears a stopped state so it can run again |
@@ -92,6 +93,7 @@ working if someone changes language.
 | Motor state | `sensor.moonboon_motor_state` |
 | Remaining | `sensor.moonboon_remaining` |
 | Finishes at | `sensor.moonboon_finishes_at` |
+| Session started | `sensor.moonboon_session_started` |
 | Program step | `sensor.moonboon_program_step` |
 | Last session rocks | `sensor.moonboon_last_session_rocks` |
 | Last session length | `sensor.moonboon_last_session_length` |

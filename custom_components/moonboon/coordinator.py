@@ -18,6 +18,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .bt_compat import reachability
+from .moonboon_ble.models import estimate_started_at
 
 from .const import (
     CONF_MINUTES,
@@ -50,6 +51,12 @@ _LOGGER = logging.getLogger(__name__)
 
 type MoonboonConfigEntry = ConfigEntry["MoonboonCoordinator"]
 
+
+
+def _describe(err: BaseException) -> str:
+    """Timeouts and many Bluetooth errors have an empty message; name the type instead."""
+    text = str(err).strip()
+    return f"{type(err).__name__}: {text}" if text else type(err).__name__
 
 class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
     """Keeps one connection to the motor and feeds the entities."""
@@ -284,15 +291,15 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
                     "central. Press the pairing button on the cradle to "
                     "re-establish the bond."
                 ) from err
-            raise UpdateFailed(f"Could not connect to the motor: {err}") from err
+            raise UpdateFailed(f"Could not connect to the motor: {_describe(err)}") from err
         self._connect_failures = 0
 
         try:
             state = await self._client.async_get_state()
         except MoonboonError as err:
-            raise UpdateFailed(f"Error talking to the motor: {err}") from err
+            raise UpdateFailed(f"Error talking to the motor: {_describe(err)}") from err
         except Exception as err:  # noqa: BLE001 - surface as a normal failure
-            raise UpdateFailed(f"Error talking to the motor: {err}") from err
+            raise UpdateFailed(f"Error talking to the motor: {_describe(err)}") from err
 
         self._reconnect_attempts = 0
         if self.data is not None:
@@ -301,6 +308,13 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
             # Computed here, once, so the sensor does not drift between reads.
             state.finishes_at = dt_util.utcnow() + timedelta(
                 seconds=state.status.remaining
+            )
+        if state.is_running:
+            state.started_at = estimate_started_at(
+                dt_util.utcnow(),
+                state.program_minutes,
+                state.status.remaining,
+                self.data.started_at if self.data is not None else None,
             )
 
         interval = (
