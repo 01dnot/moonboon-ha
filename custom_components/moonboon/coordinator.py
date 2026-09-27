@@ -205,7 +205,7 @@ class MoonboonCoordinator(DataUpdateCoordinator[MoonboonState]):
             self._reconnect_attempts = 0
 
     async def async_shutdown(self) -> None:
-        await self._apply.async_shutdown()
+        self._apply.async_shutdown()
         await super().async_shutdown()
         await self._client.disconnect()
 
